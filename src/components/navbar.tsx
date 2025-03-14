@@ -1,21 +1,45 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const menuItems = [
     { name: 'Dashboard', path: '/' },
-    { name: 'User', path: '/user' },
-    { name: 'Room Management', path: '/room-management' },
+    { name: 'User', path: '/users' },
+    { name: 'Room Management', path: '/room' },
     { name: 'Booking', path: '/booking' },
   ];
 
+  const filteredMenuItems = menuItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <nav className="bg-white shadow-lg">
+    <nav className="bg-white shadow-lg relative z-30"> {/* z-30 added */}
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo dan Menu Desktop */}
@@ -39,14 +63,18 @@ export default function Navbar() {
                 Room Manager
               </span>
             </Link>
-            
+
             {/* Menu Items Desktop */}
             <div className="hidden md:flex space-x-4">
               {menuItems.map((item) => (
                 <Link
                   key={item.path}
                   href={item.path}
-                  className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  className={`text-gray-600 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === item.path
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'hover:text-blue-600'
+                  }`}
                 >
                   {item.name}
                 </Link>
@@ -56,41 +84,70 @@ export default function Navbar() {
 
           {/* Right Section */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
-            <div className="hidden md:block relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <svg
-                className="w-5 h-5 absolute left-3 top-2.5 text-gray-400"
-                viewBox="0 0 24 24"
-                fill="none"
+            {/* Search Dropdown */}
+            <div className="relative" ref={searchRef}>
+              <button
+                onClick={() => {
+                  setIsSearchOpen(!isSearchOpen);
+                  setIsProfileOpen(false);
+                }}
+                className="hidden md:flex items-center p-2 rounded-full hover:bg-gray-100"
               >
-                <path
-                  d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M22 22L20 20"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+                <svg
+                  className="w-5 h-5 text-gray-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M22 22L20 20"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </button>
+
+              {isSearchOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-40"> {/* z-40 added */}
+                  <input
+                    type="text"
+                    placeholder="Cari form..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 border-b focus:outline-none"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredMenuItems.map((item) => (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        className={`block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${
+                          pathname === item.path ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => {
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                onClick={() => {
+                  setIsProfileOpen(!isProfileOpen);
+                  setIsSearchOpen(false);
+                }}
                 className="flex items-center space-x-1 focus:outline-none"
               >
                 <img
@@ -101,7 +158,7 @@ export default function Navbar() {
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-40"> {/* z-40 added */}
                   <div className="px-4 py-2 border-b">
                     <p className="text-sm font-semibold">John Doe</p>
                     <p className="text-xs text-gray-600">john@example.com</p>
@@ -128,7 +185,6 @@ export default function Navbar() {
               className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none"
             >
               {isMobileMenuOpen ? (
-                // X Icon (ketika menu terbuka)
                 <svg
                   className="w-6 h-6"
                   fill="none"
@@ -143,7 +199,6 @@ export default function Navbar() {
                   />
                 </svg>
               ) : (
-                // Hamburger Icon (ketika menu tertutup)
                 <svg
                   className="w-6 h-6"
                   fill="none"
@@ -164,12 +219,11 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden px-2 pt-2 pb-3 space-y-1 bg-white border-t">
-            {/* Search Bar Mobile */}
+          <div className="md:hidden px-2 pt-2 pb-3 space-y-1 bg-white border-t z-40"> {/* z-40 added */}
             <div className="mb-2">
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Cari form..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -183,26 +237,28 @@ export default function Navbar() {
                   d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
                   stroke="currentColor"
                   strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                 />
                 <path
                   d="M22 22L20 20"
                   stroke="currentColor"
                   strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                 />
               </svg>
             </div>
 
-            {/* Menu Items Mobile */}
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <Link
                 key={item.path}
                 href={item.path}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-md text-sm font-medium"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setSearchQuery('');
+                }}
+                className={`block px-3 py-2 text-sm font-medium ${
+                  pathname === item.path
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
               >
                 {item.name}
               </Link>

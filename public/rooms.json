@@ -1,0 +1,34 @@
+[
+    {
+      "id": "ROOM-ABC123XYZ",
+      "name": "Deluxe Room",
+      "capacity": 2,
+      "category": "Luxury",
+      "price": 200,
+      "status": "Available"
+    },
+    {
+      "id": "ROOM-DEF456UVW",
+      "name": "Standard Room",
+      "capacity": 4,
+      "category": "Economy",
+      "price": 100,
+      "status": "Occupied"
+    },
+    {
+      "id": "ROOM-GHI789RST",
+      "name": "Executive Suite",
+      "capacity": 3,
+      "category": "Premium",
+      "price": 300,
+      "status": "Maintenance"
+    },
+    {
+      "id": "ROOM-JKL012MNO",
+      "name": "Family Room",
+      "capacity": 6,
+      "category": "Family",
+      "price": 150,
+      "status": "Available"
+    }
+  ]

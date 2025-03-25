@@ -46,6 +46,12 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [emailTouched, setEmailTouched] = useState(false);
+  
+  // State sorting baru
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof User;
+    direction: 'asc' | 'desc' | 'none';
+  }>({ key: 'name', direction: 'none' });
 
   useEffect(() => {
     const loadData = async () => {
@@ -82,15 +88,49 @@ export default function Home() {
     loadData();
   }, []);
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (key: keyof User) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        switch (prev.direction) {
+          case 'none':
+            return { key, direction: 'asc' };
+          case 'asc':
+            return { key, direction: 'desc' };
+          default:
+            return { key, direction: 'none' };
+        }
+      } else {
+        return { key, direction: 'asc' };
+      }
+    });
+  };
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  
+
+// Proses filtering
+let filteredUsers = users.filter(user =>
+  user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  user.id.toLowerCase().includes(searchTerm.toLowerCase())
+);
+
+// Proses sorting
+let sortedUsers = [...filteredUsers];
+if (sortConfig.direction !== 'none') {
+  sortedUsers.sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? -1 : 1;
+    }
+    if (a[sortConfig.key] > b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
+}
+
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentItems = sortedUsers.slice(indexOfFirstItem, indexOfLastItem);
+const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
 
   const getBookingsByUserId = (userId: string): Booking[] => {
     return bookings.filter(booking => booking.userId === userId);
@@ -142,6 +182,7 @@ export default function Home() {
     }
   };
 
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       {(isModalOpen || isDeleteModalOpen) && (
@@ -176,25 +217,34 @@ export default function Home() {
         {/* Tabel dengan Accordion */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-12 rounded-tl-lg">
-                  No
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  ID Unik
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Nama
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-32 rounded-tr-lg">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
+          <thead className="bg-gray-50 sticky top-0">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-12 rounded-tl-lg">
+                No
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                ID Unik
+              </th>
+              {/* Kolom Nama dengan Sorting */}
+              <th 
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('name')}
+              >
+                Nama
+                {sortConfig.key === 'name' && sortConfig.direction !== 'none' && (
+                  <span className="ml-2">
+                    {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                Email
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-32 rounded-tr-lg">
+                Aksi
+              </th>
+            </tr>
+          </thead>
             <tbody className="divide-y divide-gray-200">
               {currentItems.map((user, index) => (
                 <React.Fragment key={user.id}>

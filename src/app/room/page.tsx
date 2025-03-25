@@ -12,11 +12,13 @@ interface Room {
   status: "Available" | "Occupied" | "Draft";
 }
 
+// Fungsi generate ID
 const generateUniqueId = (): string => {
   return `ROOM-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 };
 
 export default function Home() {
+  // State utama
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -32,17 +34,26 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
-  const filteredRooms = rooms.filter(
-    (room) =>
-      room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      room.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // State sorting
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Room;
+    direction: 'asc' | 'desc' | 'none';
+  }>({ key: 'name', direction: 'none' });
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRooms.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
-
+   // Fungsi handle sorting
+   const handleSort = (key: keyof Room) => {
+     setSortConfig(prev => {
+       if (prev.key === key) {
+         switch (prev.direction) {
+           case 'none': return { key, direction: 'asc' };
+           case 'asc': return { key, direction: 'desc' };
+           default: return { key: '', direction: 'none' };
+         }
+       } else {
+         return { key, direction: 'asc' };
+       }
+     });
+   };
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -78,6 +89,33 @@ export default function Home() {
     loadData();
   }, []);
 
+  // Proses filtering
+const filteredRooms = rooms.filter(
+  (room) =>
+    room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.category.toLowerCase().includes(searchTerm.toLowerCase())
+);
+
+// Proses sorting
+let sortedRooms = [...filteredRooms];  // Hanya satu deklarasi
+if (sortConfig.direction !== 'none') {
+  sortedRooms.sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? -1 : 1;
+    }
+    if (a[sortConfig.key] > b[sortConfig.key]) {
+      return sortConfig.direction === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
+}
+
+// Pagination menggunakan sortedRooms yang sudah dideklarasi
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentItems = sortedRooms.slice(indexOfFirstItem, indexOfLastItem);
+const totalPages = Math.ceil(sortedRooms.length / itemsPerPage);
+
   const handleOpenModal = (room?: Room) => {
     if (room) {
       setFormData({
@@ -94,6 +132,7 @@ export default function Home() {
     setIsModalOpen(true);
   };
 
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -151,6 +190,8 @@ export default function Home() {
     }).format(price);
   };
 
+  
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       {(isModalOpen || isDeleteModalOpen) && (
@@ -190,31 +231,40 @@ export default function Home() {
         </div>
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-12 rounded-tl-lg">
-                  No
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Name
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Capacity
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Price
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-32 rounded-tr-lg">
-                  Action
-                </th>
-              </tr>
-            </thead>
+          <thead className="bg-gray-50 sticky top-0">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-12 rounded-tl-lg">
+                No
+              </th>
+              {/* Kolom Name dengan Sorting */}
+              <th 
+                className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('name')}
+              >
+                Name
+                {sortConfig.key === 'name' && sortConfig.direction !== 'none' && (
+                  <span className="ml-2">
+                    {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                Capacity
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                Category
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                Price
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-32 rounded-tr-lg">
+                Action
+              </th>
+            </tr>
+          </thead>
             <tbody className="divide-y divide-gray-200">
               {currentItems.map((room, index) => (
                 <tr
@@ -380,14 +430,17 @@ export default function Home() {
                   <input
                     type="number"
                     placeholder="Masukkan kapasitas (Contoh: 2)"
-                    className="w-full px-4 py-2 border rounded-lg"
-                    value={formData.capacity || ""} // Tampilkan kosong jika 0
+                    className="w-full px-4 py-2 border rounded-lg
+              [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
+              [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                    value={formData.capacity || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
                         capacity: e.target.value ? Number(e.target.value) : 0,
                       })
                     }
+                    min="0"
                     required
                   />
                 </div>
@@ -418,14 +471,17 @@ export default function Home() {
                   <input
                     type="number"
                     placeholder="Masukkan harga (Contoh: 2000000)"
-                    className="w-full px-4 py-2 border rounded-lg"
-                    value={formData.price || ""} // Tampilkan kosong jika 0
+                    className="w-full px-4 py-2 border rounded-lg
+              [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
+              [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                    value={formData.price || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
                         price: e.target.value ? Number(e.target.value) : 0,
                       })
                     }
+                    min="0"
                     required
                   />
                 </div>

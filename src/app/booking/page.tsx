@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { toast, Toaster } from "sonner";
 
-// Interface yang diperbarui
 interface Room {
   id: string;
   name: string;
@@ -25,7 +24,7 @@ interface Booking {
   userId: string;
 }
 
-export default function Home() {
+export default function BookingPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -34,7 +33,6 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
-
   const [formData, setFormData] = useState({
     roomId: "",
     bookingDate: new Date().toISOString().split("T")[0],
@@ -42,45 +40,75 @@ export default function Home() {
     userId: "",
   });
 
+  // State sorting baru
+  const [sortConfig, setSortConfig] = useState({
+    key: "roomId",
+    direction: "none" as "asc" | "desc" | "none",
+  });
+
+  // Proses filtering
+  const filteredBookings = bookings.filter((booking) => {
+    const room = rooms.find((r) => r.id === booking.roomId);
+    const user = users.find((u) => u.id === booking.userId);
+    return (
+      room?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  // Proses sorting
+  let sortedBookings = [...filteredBookings];
+  if (sortConfig.direction !== "none") {
+    sortedBookings.sort((a, b) => {
+      const roomA = rooms.find((r) => r.id === a.roomId)?.name || "";
+      const roomB = rooms.find((r) => r.id === b.roomId)?.name || "";
+
+      return sortConfig.direction === "asc"
+        ? roomA.localeCompare(roomB)
+        : roomB.localeCompare(roomA);
+    });
+  }
+
+  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load Rooms dengan struktur baru
+        // Load rooms
         const savedRooms = localStorage.getItem("rooms");
         if (savedRooms) {
           setRooms(JSON.parse(savedRooms));
         } else {
           const defaultRooms: Room[] = [
-            { 
-              id: "1", 
-              name: "Room A", 
-              capacity: 2, 
-              category: "Deluxe", 
-              price: 500000, 
-              status: "Available" 
+            {
+              id: "1",
+              name: "Room A",
+              capacity: 2,
+              category: "Deluxe",
+              price: 500000,
+              status: "Available",
             },
-            { 
-              id: "2", 
-              name: "Room B", 
-              capacity: 4, 
-              category: "Suite", 
-              price: 750000, 
-              status: "Draft" 
+            {
+              id: "2",
+              name: "Room B",
+              capacity: 4,
+              category: "Suite",
+              price: 750000,
+              status: "Draft",
             },
-            { 
-              id: "3", 
-              name: "Room C", 
-              capacity: 6, 
-              category: "VIP", 
-              price: 1000000, 
-              status: "Occupied" 
+            {
+              id: "3",
+              name: "Room C",
+              capacity: 6,
+              category: "VIP",
+              price: 1000000,
+              status: "Occupied",
             },
           ];
           setRooms(defaultRooms);
           localStorage.setItem("rooms", JSON.stringify(defaultRooms));
         }
 
-        // Load Users (tetap sama)
+        // Load users
         const savedUsers = localStorage.getItem("users");
         if (savedUsers) {
           setUsers(JSON.parse(savedUsers));
@@ -94,64 +122,40 @@ export default function Home() {
           localStorage.setItem("users", JSON.stringify(defaultUsers));
         }
 
-        // Load Bookings (tetap sama)
+        // Load bookings
         const savedBookings = localStorage.getItem("bookings");
         if (savedBookings) {
-          const parsedBookings = JSON.parse(savedBookings).map((b: any) => ({
-            ...b,
-            daysStayed: parseInt(b.daysStayed) || 1,
-          }));
-          setBookings(parsedBookings);
-        } else {
-          setBookings([]);
-          localStorage.setItem("bookings", JSON.stringify([]));
+          setBookings(JSON.parse(savedBookings));
         }
       } catch (error) {
         toast.error("Gagal memuat data");
       }
     };
+
     loadData();
   }, []);
 
-  // Fungsi cek ketersediaan ruangan
+  // Fungsi cek ketersediaan kamar
   const isRoomAvailable = (roomId: string, bookingDate: string): boolean => {
-    const room = rooms.find(r => r.id === roomId);
+    const room = rooms.find((r) => r.id === roomId);
     if (!room || room.status !== "Available") return false;
 
-    const bookingStartDate = new Date(bookingDate);
-    const bookingEndDate = new Date(
-      bookingStartDate.setDate(bookingStartDate.getDate() + parseInt(formData.daysStayed))
-    );
+    const bookingStart = new Date(bookingDate);
+    const bookingEnd = new Date(bookingStart);
+    bookingEnd.setDate(bookingEnd.getDate() + parseInt(formData.daysStayed));
 
     return !bookings.some((booking) => {
       if (booking.roomId !== roomId) return false;
 
       const existingStart = new Date(booking.bookingDate);
-      const existingEnd = new Date(
-        existingStart.setDate(existingStart.getDate() + booking.daysStayed)
-      );
+      const existingEnd = new Date(existingStart);
+      existingEnd.setDate(existingEnd.getDate() + booking.daysStayed);
 
-      return !(bookingEndDate <= existingStart || bookingStartDate >= existingEnd);
+      return bookingStart < existingEnd && existingStart < bookingEnd;
     });
   };
 
-  // Handle input changes
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    if (name === "daysStayed") {
-      const numericValue = parseInt(value);
-      setFormData({
-        ...formData,
-        [name]: isNaN(numericValue) ? "" : numericValue,
-      });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-  };
-
-  // Submit form
+  // Handle submit booking
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -167,19 +171,48 @@ export default function Home() {
 
     const daysStayed = parseInt(formData.daysStayed);
     const newBooking: Booking = {
-      id: Date.now().toString(),
+      id: editingBooking?.id || Date.now().toString(),
       roomId: formData.roomId,
       bookingDate: formData.bookingDate,
-      daysStayed: daysStayed,
+      daysStayed,
       userId: formData.userId,
     };
 
     const updatedBookings = editingBooking
-      ? bookings.map((b) => (b.id === editingBooking.id ? { ...newBooking, id: b.id } : b))
+      ? bookings.map((b) => (b.id === editingBooking.id ? newBooking : b))
       : [...bookings, newBooking];
 
+    // Update status kamar
+    const updateRoomStatus = (roomId: string, status: Room["status"]) => {
+      const updatedRooms = rooms.map((room) =>
+        room.id === roomId ? { ...room, status } : room
+      );
+      setRooms(updatedRooms);
+      localStorage.setItem("rooms", JSON.stringify(updatedRooms));
+    };
+
+    if (editingBooking) {
+      // Handle perubahan kamar saat edit
+      if (editingBooking.roomId !== formData.roomId) {
+        const hasOtherBookings = bookings.some(
+          (b) =>
+            b.roomId === editingBooking.roomId && b.id !== editingBooking.id
+        );
+
+        if (!hasOtherBookings) {
+          updateRoomStatus(editingBooking.roomId, "Available");
+        }
+      }
+    }
+
+    // Update status kamar baru ke Occupied
+    updateRoomStatus(formData.roomId, "Occupied");
+
+    // Simpan perubahan
     setBookings(updatedBookings);
     localStorage.setItem("bookings", JSON.stringify(updatedBookings));
+
+    // Reset form
     setIsModalOpen(false);
     setFormData({
       roomId: "",
@@ -187,25 +220,74 @@ export default function Home() {
       daysStayed: "",
       userId: "",
     });
-    toast.success(editingBooking ? "Data diperbarui" : "Data ditambahkan");
+    toast.success(editingBooking ? "Booking diperbarui" : "Booking dibuat");
   };
 
-  // Filter bookings
-  const filteredBookings = bookings.filter(
-    (booking) =>
-      rooms.find((room) => room.id === booking.roomId)?.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      users.find((user) => user.id === booking.userId)?.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-  );
+  // Handle hapus booking
+  const handleDelete = (id: string) => {
+    const bookingToDelete = bookings.find((b) => b.id === id);
+    if (!bookingToDelete) return;
+
+    const updatedBookings = bookings.filter((b) => b.id !== id);
+
+    // Update status kamar jika perlu
+    const hasOtherBookings = updatedBookings.some(
+      (b) => b.roomId === bookingToDelete.roomId
+    );
+
+    if (!hasOtherBookings) {
+      const updatedRooms = rooms.map((room) =>
+        room.id === bookingToDelete.roomId
+          ? { ...room, status: "Available" }
+          : room
+      );
+      setRooms(updatedRooms);
+      localStorage.setItem("rooms", JSON.stringify(updatedRooms));
+    }
+
+    setBookings(updatedBookings);
+    localStorage.setItem("bookings", JSON.stringify(updatedBookings));
+    toast.success("Booking dihapus");
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    if (name === "daysStayed") {
+      const numericValue = parseInt(value);
+      setFormData({
+        ...formData,
+        [name]: isNaN(numericValue) ? "" : numericValue,
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
 
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredBookings.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+  const currentItems = sortedBookings.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
+
+  // Fungsi handle sorting
+  const handleSort = (key: "roomId") => {
+    setSortConfig((prev) => {
+      if (prev.key !== key) {
+        return { key, direction: "asc" };
+      }
+      return {
+        key,
+        direction:
+          prev.direction === "asc"
+            ? "desc"
+            : prev.direction === "desc"
+            ? "none"
+            : "asc",
+      };
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
@@ -260,8 +342,17 @@ export default function Home() {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-12 rounded-tl-lg">
                   No
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                <th
+                  className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort("roomId")}
+                >
                   Ruangan
+                  {sortConfig.key === "roomId" &&
+                    sortConfig.direction !== "none" && (
+                      <span className="ml-2">
+                        {sortConfig.direction === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
                   Status
@@ -285,18 +376,14 @@ export default function Home() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {currentItems.map((booking, index) => {
-                const room = rooms.find(r => r.id === booking.roomId);
+                const room = rooms.find((r) => r.id === booking.roomId);
                 return (
                   <tr key={booking.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
                       {indexOfFirstItem + index + 1}
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {room?.name || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {room?.status || "-"}
-                    </td>
+                    <td className="px-4 py-3 text-sm">{room?.name || "-"}</td>
+                    <td className="px-4 py-3 text-sm">{room?.status || "-"}</td>
                     <td className="px-4 py-3 text-sm">
                       {new Date(booking.bookingDate).toLocaleDateString()}
                     </td>
@@ -304,10 +391,13 @@ export default function Home() {
                       {booking.daysStayed} Hari
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {users.find(u => u.id === booking.userId)?.name || "-"}
+                      {users.find((u) => u.id === booking.userId)?.name || "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      Rp{room ? (room.price * booking.daysStayed).toLocaleString() : "-"}
+                      Rp
+                      {room
+                        ? (room.price * booking.daysStayed).toLocaleString()
+                        : "-"}
                     </td>
                     <td className="px-4 py-3 space-x-2">
                       <button
@@ -419,13 +509,15 @@ export default function Home() {
                   >
                     <option value="">Pilih Ruangan</option>
                     {rooms
-                      .filter(room => 
-                        room.status !== "Draft" && 
-                        isRoomAvailable(room.id, formData.bookingDate)
+                      .filter(
+                        (room) =>
+                          room.status !== "Draft" &&
+                          isRoomAvailable(room.id, formData.bookingDate)
                       )
                       .map((room) => (
                         <option key={room.id} value={room.id}>
-                          {room.name} - {room.category} (Kapasitas: {room.capacity}, Rp{room.price.toLocaleString()}/hari)
+                          {room.name} - {room.category} (Kapasitas:{" "}
+                          {room.capacity}, Rp{room.price.toLocaleString()}/hari)
                         </option>
                       ))}
                   </select>
@@ -456,7 +548,9 @@ export default function Home() {
                     onChange={handleInputChange}
                     min="1"
                     placeholder="Masukkan jumlah hari"
-                    className="w-full px-4 py-2 border rounded-lg"
+                    className="w-full px-4 py-2 border rounded-lg 
+              [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none 
+              [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     required
                   />
                 </div>
@@ -487,10 +581,11 @@ export default function Home() {
                   </label>
                   <input
                     type="text"
-                    value={`Rp${formData.roomId && formData.daysStayed 
-                      ? (rooms.find(r => r.id === formData.roomId)?.price || 0) * 
-                        parseInt(formData.daysStayed)
-                      : 0
+                    value={`Rp${
+                      formData.roomId && formData.daysStayed
+                        ? (rooms.find((r) => r.id === formData.roomId)?.price ||
+                            0) * parseInt(formData.daysStayed)
+                        : 0
                     }`.toLocaleString()}
                     readOnly
                     className="w-full px-4 py-2 border rounded-lg bg-gray-100 cursor-not-allowed"
@@ -522,9 +617,3 @@ export default function Home() {
 }
 
 // Fungsi Hapus
-const handleDelete = (id: string) => {
-  const updatedBookings = bookings.filter((b) => b.id !== id);
-  setBookings(updatedBookings);
-  localStorage.setItem("bookings", JSON.stringify(updatedBookings));
-  toast.success("Booking berhasil dihapus");
-};

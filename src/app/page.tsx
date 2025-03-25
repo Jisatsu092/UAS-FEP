@@ -23,64 +23,147 @@ ChartJS.register(
   Legend
 );
 
+interface BookingData {
+  id: string;
+  roomId: string;
+  bookingDate: string;
+  daysStayed: number;
+  userId: string;
+  roomName: string;
+  userName: string;
+  totalPrice: number;
+}
+
 const Dashboard = () => {
   const [revenueData, setRevenueData] = useState({
     daily: 0,
     monthly: 0,
     yearly: 0,
   });
+  
+  const [bookingsData, setBookingsData] = useState<BookingData[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof BookingData;
+    direction: "asc" | "desc" | "none";
+  }>({ key: "bookingDate", direction: "none" });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const mockData = {
-        daily: 1500000,
-        monthly: 45000000,
-        yearly: 540000000,
-      };
-      setRevenueData(mockData);
+    const fetchData = () => {
+      try {
+        const bookings = JSON.parse(localStorage.getItem("bookings") || "[]");
+        const rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+        const users = JSON.parse(localStorage.getItem("users") || "[]");
+
+        const processedData = bookings.map((booking: any) => {
+          const room = rooms.find((r: any) => r.id === booking.roomId);
+          const user = users.find((u: any) => u.id === booking.userId);
+          return {
+            ...booking,
+            roomName: room?.name || "Unknown",
+            userName: user?.name || "Unknown",
+            totalPrice: room ? room.price * booking.daysStayed : 0,
+          };
+        });
+
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        // Calculate revenues
+        const daily = processedData
+          .filter(
+            (b: BookingData) =>
+              new Date(b.bookingDate).toDateString() === today.toDateString()
+          )
+          .reduce((sum: number, b: BookingData) => sum + b.totalPrice, 0);
+
+        const monthly = processedData
+          .filter((b: BookingData) => {
+            const date = new Date(b.bookingDate);
+            return (
+              date.getMonth() === currentMonth &&
+              date.getFullYear() === currentYear
+            );
+          })
+          .reduce((sum: number, b: BookingData) => sum + b.totalPrice, 0);
+
+        const yearly = processedData
+          .filter(
+            (b: BookingData) =>
+              new Date(b.bookingDate).getFullYear() === currentYear
+          )
+          .reduce((sum: number, b: BookingData) => sum + b.totalPrice, 0);
+
+        // Calculate monthly data for chart
+        const monthlyRevenue = Array(12).fill(0);
+        processedData.forEach((b: BookingData) => {
+          const date = new Date(b.bookingDate);
+          if (date.getFullYear() === currentYear) {
+            monthlyRevenue[date.getMonth()] += b.totalPrice;
+          }
+        });
+
+        setRevenueData({ daily, monthly, yearly });
+        setBookingsData(processedData);
+        setChartData({
+          labels: [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ],
+          datasets: [
+            {
+              label: "Pendapatan Bulanan",
+              data: monthlyRevenue,
+              borderColor: "#2563eb",
+              backgroundColor: "#bfdbfe",
+              tension: 0.4,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Error loading data:", error);
+      }
     };
+
     fetchData();
   }, []);
 
-  const chartData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  const [chartData, setChartData] = useState({
+    labels: [] as string[],
     datasets: [
       {
-        label: "Harian",
-        data: [12000, 19000, 3000, 5000, 2000, 3000],
-        borderColor: "#2563eb",
-        backgroundColor: "#bfdbfe",
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      },
-      {
-        label: "Bulanan",
-        data: [30000, 45000, 25000, 35000, 40000, 50000],
-        borderColor: "#16a34a",
-        backgroundColor: "#d1fae5",
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      },
-      {
-        label: "Tahunan",
-        data: [150000, 200000, 180000, 220000, 250000, 300000],
-        borderColor: "#ea580c",
-        backgroundColor: "#fed7aa",
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        label: "",
+        data: [] as number[],
+        borderColor: "",
+        backgroundColor: "",
+        tension: 0,
+        pointRadius: 0,
+        pointHoverRadius: 0,
       },
     ],
-  };
+  });
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: "top",
+        position: "top" as const,
         labels: {
           color: "#64748b",
           font: {
@@ -104,11 +187,53 @@ const Dashboard = () => {
         },
         ticks: {
           color: "#64748b",
-          callback: (value) => `Rp${value.toLocaleString()}`,
+          callback: (value: any) => `Rp${value.toLocaleString()}`,
         },
       },
     },
   };
+
+  const handleSort = (key: keyof BookingData) => {
+    setSortConfig((prev) => ({
+      key,
+      direction:
+        prev.key === key
+          ? prev.direction === "asc"
+            ? "desc"
+            : prev.direction === "desc"
+            ? "none"
+            : "asc"
+          : "asc",
+    }));
+  };
+
+  const filteredData = bookingsData.filter((booking) =>
+    Object.values(booking).some((value) =>
+      value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const sortedData = [...filteredData].sort((a, b) => {
+    if (sortConfig.direction === "none") return 0;
+    
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+    
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortConfig.direction === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+    }
+    
+    return sortConfig.direction === "asc"
+      ? (aValue as number) - (bValue as number)
+      : (bValue as number) - (aValue as number);
+  });
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sortedData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
   return (
     <motion.div
@@ -248,6 +373,125 @@ const Dashboard = () => {
         </h3>
         <div className="h-96">
           <Line data={chartData} options={chartOptions} />
+        </div>
+      </motion.div>
+     {/* Tabel Booking */}
+     <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, delay: 1 }}
+        className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mt-6"
+      >
+        <div className="mb-4 flex justify-between items-center">
+          <h3 className="text-xl font-medium text-gray-700 dark:text-gray-300">
+            Daftar Booking Terkini
+          </h3>
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="Cari booking..."
+              className="px-4 py-2 border rounded-lg"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            <select
+              className="px-4 py-2 border rounded-lg"
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            >
+              {[5, 10, 20, 50].map((size) => (
+                <option key={size} value={size}>
+                  Tampilkan {size}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                {[
+                  { key: "userName", label: "Nama Pemesan" },
+                  { key: "roomName", label: "Ruangan" },
+                  { key: "bookingDate", label: "Tanggal Booking" },
+                  { key: "daysStayed", label: "Lama Menginap" },
+                  { key: "totalPrice", label: "Total Harga" },
+                ].map((header) => (
+                  <th
+                    key={header.key}
+                    className="px-4 py-3 text-left cursor-pointer"
+                    onClick={() => handleSort(header.key as keyof BookingData)}
+                  >
+                    {header.label}
+                    {sortConfig.key === header.key &&
+                      sortConfig.direction !== "none" && (
+                        <span className="ml-2">
+                          {sortConfig.direction === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {currentItems.map((booking) => (
+                <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-4 py-3">{booking.userName}</td>
+                  <td className="px-4 py-3">{booking.roomName}</td>
+                  <td className="px-4 py-3">
+                    {new Date(booking.bookingDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">{booking.daysStayed} Hari</td>
+                  <td className="px-4 py-3">
+                    Rp{booking.totalPrice.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-4 flex justify-between items-center">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan {indexOfFirstItem + 1} -{" "}
+            {Math.min(indexOfLastItem, sortedData.length)} dari{" "}
+            {sortedData.length} entri
+          </span>
+          <div className="flex gap-2">
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Sebelumnya
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                className={`px-3 py-1 rounded ${
+                  currentPage === i + 1
+                    ? "bg-blue-600 text-white"
+                    : "border hover:bg-gray-100"
+                }`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Selanjutnya
+            </button>
+          </div>
         </div>
       </motion.div>
     </motion.div>

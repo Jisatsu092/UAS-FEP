@@ -33,20 +33,29 @@ export default function BookingPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  
+  // Fungsi untuk mendapatkan tanggal pertama bulan ini
+  const getCurrentLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Bulan dimulai dari 0
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState({
     roomId: "",
-    bookingDate: new Date().toISOString().split("T")[0],
+    bookingDate: getCurrentLocalDate(),
     daysStayed: "",
     userId: "",
   });
 
-  // State sorting baru
   const [sortConfig, setSortConfig] = useState({
     key: "roomId",
     direction: "none" as "asc" | "desc" | "none",
   });
 
-  // Proses filtering
   const filteredBookings = bookings.filter((booking) => {
     const room = rooms.find((r) => r.id === booking.roomId);
     const user = users.find((u) => u.id === booking.userId);
@@ -56,24 +65,20 @@ export default function BookingPage() {
     );
   });
 
-  // Proses sorting
   let sortedBookings = [...filteredBookings];
   if (sortConfig.direction !== "none") {
     sortedBookings.sort((a, b) => {
       const roomA = rooms.find((r) => r.id === a.roomId)?.name || "";
       const roomB = rooms.find((r) => r.id === b.roomId)?.name || "";
-
       return sortConfig.direction === "asc"
         ? roomA.localeCompare(roomB)
         : roomB.localeCompare(roomA);
     });
   }
 
-  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load rooms
         const savedRooms = localStorage.getItem("rooms");
         if (savedRooms) {
           setRooms(JSON.parse(savedRooms));
@@ -108,7 +113,6 @@ export default function BookingPage() {
           localStorage.setItem("rooms", JSON.stringify(defaultRooms));
         }
 
-        // Load users
         const savedUsers = localStorage.getItem("users");
         if (savedUsers) {
           setUsers(JSON.parse(savedUsers));
@@ -122,7 +126,6 @@ export default function BookingPage() {
           localStorage.setItem("users", JSON.stringify(defaultUsers));
         }
 
-        // Load bookings
         const savedBookings = localStorage.getItem("bookings");
         if (savedBookings) {
           setBookings(JSON.parse(savedBookings));
@@ -131,11 +134,9 @@ export default function BookingPage() {
         toast.error("Gagal memuat data");
       }
     };
-
     loadData();
   }, []);
 
-  // Fungsi cek ketersediaan kamar
   const isRoomAvailable = (roomId: string, bookingDate: string): boolean => {
     const room = rooms.find((r) => r.id === roomId);
     if (!room || room.status !== "Available") return false;
@@ -146,16 +147,13 @@ export default function BookingPage() {
 
     return !bookings.some((booking) => {
       if (booking.roomId !== roomId) return false;
-
       const existingStart = new Date(booking.bookingDate);
       const existingEnd = new Date(existingStart);
       existingEnd.setDate(existingEnd.getDate() + booking.daysStayed);
-
       return bookingStart < existingEnd && existingStart < bookingEnd;
     });
   };
 
-  // Handle submit booking
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -182,7 +180,6 @@ export default function BookingPage() {
       ? bookings.map((b) => (b.id === editingBooking.id ? newBooking : b))
       : [...bookings, newBooking];
 
-    // Update status kamar
     const updateRoomStatus = (roomId: string, status: Room["status"]) => {
       const updatedRooms = rooms.map((room) =>
         room.id === roomId ? { ...room, status } : room
@@ -192,45 +189,36 @@ export default function BookingPage() {
     };
 
     if (editingBooking) {
-      // Handle perubahan kamar saat edit
       if (editingBooking.roomId !== formData.roomId) {
         const hasOtherBookings = bookings.some(
-          (b) =>
-            b.roomId === editingBooking.roomId && b.id !== editingBooking.id
+          (b) => b.roomId === editingBooking.roomId && b.id !== editingBooking.id
         );
-
         if (!hasOtherBookings) {
           updateRoomStatus(editingBooking.roomId, "Available");
         }
       }
     }
 
-    // Update status kamar baru ke Occupied
     updateRoomStatus(formData.roomId, "Occupied");
 
-    // Simpan perubahan
     setBookings(updatedBookings);
     localStorage.setItem("bookings", JSON.stringify(updatedBookings));
 
-    // Reset form
     setIsModalOpen(false);
     setFormData({
       roomId: "",
-      bookingDate: new Date().toISOString().split("T")[0],
+      bookingDate: getCurrentLocalDate(),
       daysStayed: "",
       userId: "",
     });
     toast.success(editingBooking ? "Booking diperbarui" : "Booking dibuat");
   };
 
-  // Handle hapus booking
   const handleDelete = (id: string) => {
     const bookingToDelete = bookings.find((b) => b.id === id);
     if (!bookingToDelete) return;
 
     const updatedBookings = bookings.filter((b) => b.id !== id);
-
-    // Update status kamar jika perlu
     const hasOtherBookings = updatedBookings.some(
       (b) => b.roomId === bookingToDelete.roomId
     );
@@ -265,33 +253,27 @@ export default function BookingPage() {
     }
   };
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = sortedBookings.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
 
-  // Fungsi handle sorting
   const handleSort = (key: "roomId") => {
-    setSortConfig((prev) => {
-      if (prev.key !== key) {
-        return { key, direction: "asc" };
-      }
-      return {
-        key,
-        direction:
-          prev.direction === "asc"
-            ? "desc"
-            : prev.direction === "desc"
-            ? "none"
-            : "asc",
-      };
-    });
+    setSortConfig((prev) => ({
+      key,
+      direction:
+        prev.key !== key
+          ? "asc"
+          : prev.direction === "asc"
+          ? "desc"
+          : prev.direction === "desc"
+          ? "none"
+          : "asc",
+    }));
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      {/* Backdrop Blur */}
       {isModalOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
@@ -299,7 +281,6 @@ export default function BookingPage() {
         />
       )}
       <div className="max-w-6xl mx-auto relative z-30">
-        {/* Header */}
         <div className="sticky top-0 bg-white rounded-lg shadow-sm z-20 mb-4">
           <div className="flex justify-between items-center p-4">
             <h1 className="text-2xl font-bold text-gray-800">
@@ -310,7 +291,7 @@ export default function BookingPage() {
                 setEditingBooking(null);
                 setFormData({
                   roomId: "",
-                  bookingDate: new Date().toISOString().split("T")[0],
+                  bookingDate: getCurrentLocalDate(),
                   daysStayed: "",
                   userId: "",
                 });
@@ -334,7 +315,7 @@ export default function BookingPage() {
             />
           </div>
         </div>
-        {/* Tabel */}
+
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 sticky top-0">
@@ -428,7 +409,7 @@ export default function BookingPage() {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
+
         <div className="mt-4 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow">
           <div className="flex items-center gap-4 mb-2 md:mb-0">
             <span className="text-sm text-gray-600">Tampilkan:</span>
@@ -483,7 +464,7 @@ export default function BookingPage() {
           </div>
         </div>
       </div>
-      {/* Modal Tambah/Edit Booking */}
+
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div
@@ -495,7 +476,6 @@ export default function BookingPage() {
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
-                {/* Pilih Ruangan */}
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Ruangan
@@ -522,7 +502,6 @@ export default function BookingPage() {
                       ))}
                   </select>
                 </div>
-                {/* Tanggal Booking */}
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Tanggal Booking
@@ -536,7 +515,6 @@ export default function BookingPage() {
                     required
                   />
                 </div>
-                {/* Lama Menginap */}
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Lama Menginap (Hari)
@@ -554,7 +532,6 @@ export default function BookingPage() {
                     required
                   />
                 </div>
-                {/* Pilih User */}
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Dipesan Oleh
@@ -574,7 +551,6 @@ export default function BookingPage() {
                     ))}
                   </select>
                 </div>
-                {/* Total Harga */}
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Total Harga
@@ -615,5 +591,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-// Fungsi Hapus

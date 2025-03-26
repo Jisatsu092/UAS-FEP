@@ -1,2 +1,66 @@
-install MUI
-npm install @mui/material @emotion/react @emotion/styled @mui/icons-material
+1.  Kebutuhan Instalasi
+    Software yang Dibutuhkan:
+    Node.js (Versi terbaru yang direkomendasikan oleh Next.js)
+    NPM (Untuk mengelola dependensi proyek)
+    Git (Untuk mengunduh repository dari GitHub)
+    Editor Kode seperti VS Code untuk pengembangan
+
+    Hardware yang Dibutuhkan:
+    Processor: Minimal Intel Core i3 atau setara
+    RAM: Minimal 4GB (Disarankan 8GB untuk performa optimal)
+    Storage: Minimal 10GB ruang kosong untuk proyek dan dependensi
+
+2.  Tahapan Instalasi dari GitHub
+
+    Clone Repository
+    git clone https://github.com/username/repository-name.git
+    cd repository-name
+
+    Install Dependencies
+    npm install
+
+    Jalankan Proyek dalam Mode Development
+    npm run dev
+
+    Akses Aplikasi
+    Buka browser dan akses http://localhost:3000
+
+3.  /src
+ ├── app/               # Folder utama untuk routing dan halaman
+ │   ├── booking/       # Folder booking
+ │   ├──   page.tsx     # Halaman booking
+ │   ├── rooms/         # Halaman rooms
+ │   ├──   page.tsx     # Halaman room
+ │   ├── users/         # Halaman users
+ │   ├──   page.tsx     # Halaman user
+ │   ├── favicon.ico    # Ikon aplikasi
+ │   ├── globals.css    # Styling global
+ │   ├── layout.tsx     # Layout utama aplikasi
+ │   ├── page.tsx     # Halaman utama
+ ├── components/        # Komponen UI yang dapat digunakan kembali
+ │   ├── navbar.tsx     # Navigasi utama aplikasi
+ ├── styles/            # Folder untuk styling
+ │   ├── global.css     # Styling global aplikasi
+
+
+ 4. Modul/Fitur yang Tersedia
+    Menu Beranda: Menampilkan grafik data
+    Menu Room: Tambah data room, edit status dan delete room serta dilengkapi dengan pagination, sorting, search
+    Menu User: Tambah data user, serta dilengkapi dengan pagination, sorting, search
+    Menu Booking: Tambah data booking, delete data booking, serta dilengkapi dengan pagination, sorting, search
+    Fitur Tambah Data: Modal untuk menambahkan data baru
+    Fitur Pencarian: Search bar untuk mencari data
+    Fitur Sorting: Mengurutkan data berdasarkan kolom tertentu
+    Fitur Pagination: Menampilkan data dengan paginasi
+
+5.  "framer-motion": "^12.5.0",
+    Library animasi untuk React dengan syntax sederhana.
+    npm install framer-motion
+
+    "react-chartjs-2": "^5.3.0",
+    Library untuk visualisasi data dengan chart di React.
+    npm install react-chartjs-2
+
+    "sonner": "^2.0.1"
+    Library toast notification untuk React.
+    npm install sonner
